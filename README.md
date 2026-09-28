@@ -36,25 +36,26 @@ A mobile-friendly, high-responsiveness web application for counting multi-modal 
 
 ### Deploying
 This project is deployed using fly.io
-Install the flyctl cli app
-create a new application using `fly launch`, I specifically did this: `fly launch --build-only -r iad`
-after this I made some adjustments to the `.dockerignore` file
-then I created a volume using `fly volume` to hold the sqlite files. Specifically I did `fly volumes create flowcounter_sqlite -s 1 -r iad`
-made some adjustments to DB loctions and set some environment variables
-ran `fly deploy --build-only` again to see if everything seems happy.
-Looks good, so I ran `fly deploy`
-After a couple of tweaks to the dockerfile `CMD` line and a few tweaks to the `fly.toml` to adjust the configuration, it's running.
+1. Install the flyctl cli app
+1. create a new application using `fly launch`, I specifically did this: `fly launch --build-only -r iad`
+1. after this I made some adjustments to the `.dockerignore` file
+1. then I created a volume using `fly volume` to hold the sqlite files. Specifically I did `fly volumes create flowcounter_sqlite -s 1 -r iad`
+1. made some adjustments to DB loctions and set some environment variables
+1. ran `fly deploy --build-only` again to see if everything seems happy.
+1. Looks good, so I ran `fly deploy`
+1. After a couple of tweaks to the dockerfile `CMD` line and a few tweaks to the `fly.toml` to adjust the configuration, it's running.
 
 To deploy new changes, make sure it looks good locally, then run `fly deploy`
 
 ### Maintenance
-The flyctl has an sftp interface built in, so downloading the database for local inspection can be done that way.
-Note that you have wake up the app before you can connect via sftp.
-`fly status`
-`fly m start {machineid}`
-`fly ssh sftp get /data/tallies.db`
-`fly ssh sftp get /data/tallies.db-wal`
-`fly ssh sftp get /data/tallies.db-shm`
+The flyctl has an sftp interface built in, so downloading the database for local inspection can be done that way. Note that you have wake up the app before you can connect via sftp.
+```
+fly status
+fly m start {machineid}
+fly ssh sftp get /data/tallies.db
+fly ssh sftp get /data/tallies.db-wal
+fly ssh sftp get /data/tallies.db-shm
+```
 or replace `tallies.db` with your database name as configured in your environment variable.
 
 

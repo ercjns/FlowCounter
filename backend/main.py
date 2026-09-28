@@ -63,8 +63,8 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
     approach_map = {}
     approach_type_map = {}
     for i, app_in in enumerate(data.approaches):
-        if app_in.type not in ("entry", "exit"):
-            raise HTTPException(status_code=400, detail=f"Approach type must be 'entry' or 'exit', got '{app_in.type}'")
+        if app_in.type not in ("entry", "exit", "bike", "sidewalk"):
+            raise HTTPException(status_code=400, detail=f"Approach type must be 'entry', 'exit', 'bike', 'sidewalk', got '{app_in.type}'")
         approach = models.IntersectionApproach(
             intersection_id=intersection.id,
             name=app_in.name,
@@ -94,10 +94,10 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
         entry_id = approach_map.get(mov_in.entry_approach_id, mov_in.entry_approach_id)
         exit_id = approach_map.get(mov_in.exit_approach_id, mov_in.exit_approach_id)
 
-        if approach_type_map.get(entry_id) != "entry":
-            raise HTTPException(status_code=400, detail=f"Movement entry approach must have type 'entry'")
-        if approach_type_map.get(exit_id) != "exit":
-            raise HTTPException(status_code=400, detail=f"Movement exit approach must have type 'exit'")
+        if approach_type_map.get(entry_id) == "exit":
+            raise HTTPException(status_code=400, detail=f"Movement entry approach must not have type 'exit'")
+        if approach_type_map.get(exit_id) == "entry":
+            raise HTTPException(status_code=400, detail=f"Movement exit approach must not have type 'entry'")
 
         # Map valid_mode_ids (can be names, indices, or existing IDs)
         mapped_mode_ids = []

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class ApproachBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     compass_degrees: int = Field(..., ge=0, le=359)
-    type: Literal["entry", "exit"]
+    type: Literal["entry", "exit", "bike", "sidewalk"]
 
 class ApproachCreate(ApproachBase):
     pass
@@ -53,8 +53,8 @@ class IntersectionCreate(BaseModel):
     description: Optional[str] = None
     password: Optional[str] = None
     approaches: List[ApproachCreate] = []
-    movements: List[MovementCreate] = []
     modes: List[TravelModeCreate] = []
+    movements: List[MovementCreate] = []
 
 class IntersectionSummary(BaseModel):
     id: str

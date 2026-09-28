@@ -76,7 +76,7 @@ def test_create_intersection_with_compass_degrees_and_password():
                 "name": "EB Ped Crossing",
                 "entry_approach_id": "Eastbound Entry",
                 "exit_approach_id": "Westbound Exit",
-                "movement_type": "ped_crossing",
+                "movement_type": "cross",
                 "valid_mode_ids": ["Pedestrian"]
             }
         ],

@@ -322,7 +322,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <span className="fw-semibold text-dark d-none d-sm-inline">{intersection.name}</span>
-              <span className="me-2 text-small">Observer: {session.counter_name}</span>
+              <span className="me-2 text-small">&nbsp;Observer: {session.counter_name}</span>
             </div>
 
             <div className="d-flex align-items-center gap-2">

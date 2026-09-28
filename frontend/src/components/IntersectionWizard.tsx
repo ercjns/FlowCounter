@@ -8,8 +8,8 @@ interface Props {
 
 interface ApproachInput {
   name: string;
-  compass_degrees: number;
-  type: "entry" | "exit";
+  type: "entry" | "exit" | "bike" | "sidewalk";
+  compass_degrees?: number;
 }
 
 interface MovementInput {
@@ -42,26 +42,29 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
   const [adminKey, setAdminKey] = useState("");
 
   const [approaches, setApproaches] = useState<ApproachInput[]>([
-    { name: "North Entry", compass_degrees: 0, type: "entry" },
-    { name: "East Exit", compass_degrees: 90, type: "exit" },
-    { name: "South Exit", compass_degrees: 180, type: "exit" },
-    { name: "West Entry", compass_degrees: 270, type: "entry" },
+    // { name: "North Entry", compass_degrees: 0, type: "entry" },
+    // { name: "East Exit", compass_degrees: 90, type: "exit" },
+    // { name: "South Exit", compass_degrees: 180, type: "exit" },
+    // { name: "West Entry", compass_degrees: 270, type: "entry" },
   ]);
 
   const [modes, setModes] = useState<ModeInput[]>(DEFAULT_MODES);
 
   const [movements, setMovements] = useState<MovementInput[]>([
-    { name: "SB Thru", entry_approach_index: 0, exit_approach_index: 2, movement_type: "thru", valid_mode_indices: [] },
-    { name: "WB Right", entry_approach_index: 3, exit_approach_index: 2, movement_type: "right", valid_mode_indices: [] },
-    { name: "WB Thru", entry_approach_index: 3, exit_approach_index: 1, movement_type: "thru", valid_mode_indices: [] },
+    // { name: "SB Thru", entry_approach_index: 0, exit_approach_index: 2, movement_type: "thru", valid_mode_indices: [] },
+    // { name: "WB Right", entry_approach_index: 3, exit_approach_index: 2, movement_type: "right", valid_mode_indices: [] },
+    // { name: "WB Thru", entry_approach_index: 3, exit_approach_index: 1, movement_type: "thru", valid_mode_indices: [] },
   ]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Derived helpers
-  const entryApproaches = approaches.map((a, i) => ({ ...a, originalIndex: i })).filter((a) => a.type === "entry");
-  const exitApproaches = approaches.map((a, i) => ({ ...a, originalIndex: i })).filter((a) => a.type === "exit");
+  const originApproaches = approaches.map((a, i) => ({ ...a, index: i })).filter((a) => a.type !== "exit");
+  const destinationApproaches = approaches.map((a, i) => ({ ...a, index: i })).filter((a) => a.type !== "entry");
+  const sidewalkApproahces = approaches.map((a, i) => ({ ...a, index: i })).filter((a) => a.type === "sidewalk");
+  const bikeApproahces = approaches.map((a, i) => ({ ...a, index: i })).filter((a) => a.type === "bike");
+  const exitApproaches = approaches.map((a, i) => ({ ...a, index: i })).filter((a) => a.type === "exit");
 
   // ── Approach Handlers ──────────────────────────────────────────────────────
   const addApproach = () => {
@@ -122,14 +125,14 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
 
   // ── Movement Handlers ──────────────────────────────────────────────────────
   const addMovement = () => {
-    const firstEntry = entryApproaches[0]?.originalIndex ?? 0;
-    const firstExit = exitApproaches[0]?.originalIndex ?? 0;
+    const entryIdx = originApproaches[0]?.index ?? 0;
+    const exitIdx = destinationApproaches[0]?.index ?? 0;
     setMovements([
       ...movements,
       {
         name: "New Movement",
-        entry_approach_index: firstEntry,
-        exit_approach_index: firstExit,
+        entry_approach_index: entryIdx,
+        exit_approach_index: exitIdx,
         movement_type: "thru",
         valid_mode_indices: modes.map((_, i) => i), // default all modes
       },
@@ -181,11 +184,11 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
       setError("Please define at least one approach");
       return;
     }
-    if (entryApproaches.length === 0) {
+    if (originApproaches.length === 0) {
       setError("Please define at least one entry approach");
       return;
     }
-    if (exitApproaches.length === 0) {
+    if (exitApproaches.length === 0 && bikeApproahces.length === 0 && sidewalkApproahces.length === 0) {
       setError("Please define at least one exit approach");
       return;
     }
@@ -320,7 +323,10 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
           </div>
           <div className="card-body">
             <p className="text-muted small mb-3">
-              Define the legs of the intersection. Each approach is either an <strong>Entry</strong> (vehicles/people arrive into the intersection) or an <strong>Exit</strong> (vehicles/people leave). Heading degrees must be between <strong>0° (North) and 359°</strong>.
+              Define the legs of the intersection. 
+              For <strong>normal vehicle lanes</strong>, define separate entry and exit approaches. Movement definitions must flow from entry to exit.
+              &nbsp;<strong>Bike lane</strong> approaches do not have an inherent direction, use the movement definition to establish valid direction(s).
+              &nbsp;<strong>Sidewalk</strong> approaches typically represent a corner from which a pedestrian could cross to another sidewalk approach.
             </p>
 
             <div className="table-responsive">
@@ -328,9 +334,9 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                 <thead className="table-light small">
                   <tr>
                     <th style={{ width: "40px" }}>#</th>
+                    <th style={{ width: "150px" }}>Type</th>
                     <th>Approach Name</th>
-                    <th style={{ width: "130px" }}>Heading (0–359°)</th>
-                    <th style={{ width: "120px" }}>Approach Type</th>
+                    {/* <th style={{ width: "130px" }}>Heading (0–359°)</th> */}
                     <th style={{ width: "60px" }}></th>
                   </tr>
                 </thead>
@@ -338,6 +344,18 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                   {approaches.map((app, idx) => (
                     <tr key={idx}>
                       <td className="text-center text-muted fw-semibold small">{idx + 1}</td>
+                      <td>
+                        <select
+                          className="form-select form-select-sm"
+                          value={app.type}
+                          onChange={(e) => updateApproach(idx, "type", e.target.value as "entry" | "exit" | "bike" | "sidewalk")}
+                        >
+                          <option value="entry">Vehicle Entry</option>
+                          <option value="exit">Vehicle Exit</option>
+                          <option value="bike">Bike Lane</option>
+                          <option value="sidewalk">Sidewalk</option>
+                        </select>
+                      </td>
                       <td>
                         <input
                           type="text"
@@ -348,7 +366,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           required
                         />
                       </td>
-                      <td>
+                      {/* <td>
                         <input
                           type="number"
                           min="0"
@@ -358,17 +376,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           onChange={(e) => updateApproach(idx, "compass_degrees", parseInt(e.target.value) || 0)}
                           required
                         />
-                      </td>
-                      <td>
-                        <select
-                          className="form-select form-select-sm"
-                          value={app.type}
-                          onChange={(e) => updateApproach(idx, "type", e.target.value as "entry" | "exit")}
-                        >
-                          <option value="entry">Entry</option>
-                          <option value="exit">Exit</option>
-                        </select>
-                      </td>
+                      </td> */}
                       <td className="text-center">
                         <button
                           type="button"
@@ -391,12 +399,12 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
               </button>
             </div>
 
-            {entryApproaches.length === 0 && (
+            {originApproaches.length === 0 && (
               <div className="alert alert-warning small py-2 mb-0">
                 <i className="bi bi-exclamation-triangle me-1"></i> At least one <strong>Entry</strong> approach is required for movements.
               </div>
             )}
-            {exitApproaches.length === 0 && (
+            {exitApproaches.length === 0 && bikeApproahces.length === 0 && sidewalkApproahces.length === 0 && (
               <div className="alert alert-warning small py-2 mb-0">
                 <i className="bi bi-exclamation-triangle me-1"></i> At least one <strong>Exit</strong> approach is required for movements.
               </div>
@@ -494,9 +502,9 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           value={mov.entry_approach_index}
                           onChange={(e) => updateMovement(movIdx, "entry_approach_index", parseInt(e.target.value))}
                         >
-                          {entryApproaches.map((app) => (
-                            <option key={app.originalIndex} value={app.originalIndex}>
-                              #{app.originalIndex + 1} {app.name}
+                          {originApproaches.map((app) => (
+                            <option key={app.index} value={app.index}>
+                              #{app.index + 1} {app.name}
                             </option>
                           ))}
                         </select>
@@ -510,9 +518,9 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           value={mov.exit_approach_index}
                           onChange={(e) => updateMovement(movIdx, "exit_approach_index", parseInt(e.target.value))}
                         >
-                          {exitApproaches.map((app) => (
-                            <option key={app.originalIndex} value={app.originalIndex}>
-                              #{app.originalIndex + 1} {app.name}
+                          {destinationApproaches.map((app) => (
+                            <option key={app.index} value={app.index}>
+                              #{app.index + 1} {app.name}
                             </option>
                           ))}
                         </select>
@@ -525,10 +533,9 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           onChange={(e) => updateMovement(movIdx, "movement_type", e.target.value)}
                         >
                           <option value="thru">Thru</option>
-                          <option value="left">Left Turn</option>
-                          <option value="right">Right Turn</option>
-                          <option value="u-turn">U-Turn</option>
-                          <option value="ped_crossing">Ped Crossing</option>
+                          <option value="left">Left</option>
+                          <option value="right">Right</option>
+                          <option value="cross">Crossing</option>
                         </select>
                       </div>
                       <div className="col-1">
@@ -588,7 +595,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                 type="button"
                 className="btn btn-sm btn-outline-primary"
                 onClick={addMovement}
-                disabled={entryApproaches.length === 0 || exitApproaches.length === 0}
+                disabled={originApproaches.length === 0 || destinationApproaches.length === 0}
               >
                 <i className="bi bi-plus me-1"></i> Add Movement
               </button>

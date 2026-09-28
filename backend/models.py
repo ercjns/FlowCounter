@@ -32,8 +32,8 @@ class IntersectionApproach(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     intersection_id = Column(String(36), ForeignKey("intersections.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
-    compass_degrees = Column(Integer, nullable=False) # 0 to 359
-    type = Column(String(20), nullable=False) # 'entry' or 'exit'
+    compass_degrees = Column(Integer, nullable=True) # 0 to 359
+    type = Column(String(20), nullable=False) # 'entry', 'exit', 'bike', 'sidewalk'
 
     intersection = relationship("Intersection", back_populates="approaches")
 

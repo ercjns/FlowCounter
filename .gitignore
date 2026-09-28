@@ -1,0 +1,5 @@
+debug/*
+*.db*
+venv/*
+*.pyc
+.pytest_cache/*

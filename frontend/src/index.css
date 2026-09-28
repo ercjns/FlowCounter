@@ -1,0 +1,39 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+/* Mobile-first optimizations */
+body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  background-color: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Fast-click tally button with snappy micro-transform */
+.tally-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.06s ease, filter 0.06s ease;
+  min-height: 70px;
+  touch-action: manipulation;
+}
+
+.tally-btn:active {
+  transform: scale(0.96);
+  filter: brightness(0.9);
+}
+
+.tally-btn-pulse {
+  animation: pulse-flash 0.12s ease-out;
+}
+
+@keyframes pulse-flash {
+  0% { filter: brightness(1.3); }
+  100% { filter: brightness(1); }
+}
+
+.badge-15m {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}

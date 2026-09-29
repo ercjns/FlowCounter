@@ -271,7 +271,8 @@ def record_tally(session_id: str, data: schemas.TallyEventCreate, db: Session = 
     db.refresh(tally)
     return tally
 
-@app.post("/api/sessions/{session_id}/tallies/batch", response_model=List[schemas.TallyEventResponse])
+# @app.post("/api/sessions/{session_id}/tallies/batch", response_model=List[schemas.TallyEventResponse])
+@app.post("/api/sessions/{session_id}/tallies/batch", response_model=List[str])
 def record_tallies_batch(session_id: str, data: schemas.TallyBatchCreate, db: Session = Depends(get_db)):
     session = db.query(models.CountingSession).filter(models.CountingSession.id == session_id).first()
     if not session:
@@ -300,7 +301,8 @@ def record_tallies_batch(session_id: str, data: schemas.TallyBatchCreate, db: Se
     db.commit()
     for tally in created:
         db.refresh(tally)
-    return created
+    # return created
+    return [x.id for x in created]
 
 @app.delete("/api/sessions/{session_id}/tallies/last")
 def undo_last_tally(session_id: str, db: Session = Depends(get_db)):

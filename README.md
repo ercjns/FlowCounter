@@ -32,7 +32,7 @@ A mobile-friendly, high-responsiveness web application for counting multi-modal 
 1. Set two Environment Variables: `FLOWCOUNT_ADMIN_KEY` and optionally, `DATABASE_URL`. If `DATABASE_URL` is not set, `flow_counter.db` will be created at the project root.
 2. If there are any front-end changes, build the front-end. From the `frontend` folder, run `node_modules\.bin\vite.cmd build`
 3. Activate the virtual environment (`venv\Scripts\activate` on Windows, `. /venv/bin/activate` on linux)
-4. Start the server: `python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`
+4. Start the server: `python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`
 
 ### Deploying
 This project is deployed using fly.io

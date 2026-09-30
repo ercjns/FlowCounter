@@ -84,16 +84,16 @@ export async function endSession(sessionId: string): Promise<SessionData> {
   if (!res.ok) throw new Error("Failed to end session");
   return res.json();
 }
-
-export async function recordTally(sessionId: string, movementId: string, modeId: string) {
-  const res = await fetch(`${API_BASE}/sessions/${sessionId}/tallies`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ movement_id: movementId, mode_id: modeId }),
-  });
-  if (!res.ok) throw new Error("Failed to record tally");
-  return res.json();
-}
+// Function has no references...
+// export async function recordTally(sessionId: string, movementId: string, modeId: string) {
+//   const res = await fetch(`${API_BASE}/sessions/${sessionId}/tallies`, {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({ movement_id: movementId, mode_id: modeId }),
+//   });
+//   if (!res.ok) throw new Error("Failed to record tally");
+//   return res.json();
+// }
 
 export async function recordTalliesBatch(sessionId: string, events: { movement_id: string; mode_id: string; timestamp?: string }[]) {
   const res = await fetch(`${API_BASE}/sessions/${sessionId}/tallies/batch`, {

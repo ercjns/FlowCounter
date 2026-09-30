@@ -210,12 +210,12 @@ export const SessionSetup: React.FC<Props> = ({ intersection, onBack, onSessionS
           <div className="card-header bg-white fw-bold py-3">Observer Details</div>
           <div className="card-body">
             <div className="mb-3">
-              <label htmlFor="counterNameInput" className="form-label fw-semibold">Your Name / Counter ID *</label>
+              <label htmlFor="counterNameInput" className="form-label fw-semibold">Name / Identifier *</label>
               <input
                 id="counterNameInput"
                 type="text"
                 className="form-control form-control-lg"
-                placeholder="e.g., Alex Johnson"
+                placeholder="Your Name Here"
                 value={counterName}
                 onChange={(e) => setCounterName(e.target.value)}
                 required

@@ -70,8 +70,7 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
         )
         db.add(approach)
         db.flush()
-        approach_map[i] = approach.id
-        approach_map[app_in.name] = approach.id
+        approach_map[str(i)] = approach.id # string this because in the movement definitions it sends string values for these ids even though they're just numbers in the frontend
         approach_type_map[approach.id] = app_in.type
 
     mode_map = {}
@@ -88,8 +87,8 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
         mode_map[mode_in.name] = mode.id
 
     for mov_in in data.movements:
-        entry_id = approach_map.get(mov_in.entry_approach_id, mov_in.entry_approach_id)
-        exit_id = approach_map.get(mov_in.exit_approach_id, mov_in.exit_approach_id)
+        entry_id = approach_map[mov_in.entry_approach_id]
+        exit_id = approach_map[mov_in.exit_approach_id]
 
         if approach_type_map.get(entry_id) == "exit":
             raise HTTPException(status_code=400, detail=f"Movement entry approach must not have type 'exit'")

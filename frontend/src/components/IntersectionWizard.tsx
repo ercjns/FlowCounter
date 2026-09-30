@@ -227,8 +227,8 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
         })),
         movements: movements.map((mov) => ({
           name: mov.name.trim(),
-          entry_approach_id: approaches[mov.entry_approach_index]?.name || String(mov.entry_approach_index),
-          exit_approach_id: approaches[mov.exit_approach_index]?.name || String(mov.exit_approach_index),
+          entry_approach_id: String(mov.entry_approach_index),
+          exit_approach_id: String(mov.exit_approach_index),
           movement_type: mov.movement_type,
           valid_mode_ids: mov.valid_mode_indices.map((mi) => modes[mi]?.name || String(mi)),
         })),

@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -48,9 +48,6 @@ def list_intersections(db: Session = Depends(get_db)):
 
 @app.post("/api/intersections", response_model=schemas.IntersectionDetail, status_code=status.HTTP_201_CREATED)
 def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(get_db)):
-    valid = utils.verify_admin_key(data.adminKey)
-    if not valid:
-        raise HTTPException(status_code=403, detail="Invalid Admin Key")
     password_hash = utils.hash_password(data.password) if data.password else None
     intersection = models.Intersection(
         name=data.name,
@@ -73,8 +70,7 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
         )
         db.add(approach)
         db.flush()
-        approach_map[i] = approach.id
-        approach_map[app_in.name] = approach.id
+        approach_map[str(i)] = approach.id # string this because in the movement definitions it sends string values for these ids even though they're just numbers in the frontend
         approach_type_map[approach.id] = app_in.type
 
     mode_map = {}
@@ -91,8 +87,8 @@ def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(
         mode_map[mode_in.name] = mode.id
 
     for mov_in in data.movements:
-        entry_id = approach_map.get(mov_in.entry_approach_id, mov_in.entry_approach_id)
-        exit_id = approach_map.get(mov_in.exit_approach_id, mov_in.exit_approach_id)
+        entry_id = approach_map[mov_in.entry_approach_id]
+        exit_id = approach_map[mov_in.exit_approach_id]
 
         if approach_type_map.get(entry_id) == "exit":
             raise HTTPException(status_code=400, detail=f"Movement entry approach must not have type 'exit'")
@@ -156,6 +152,113 @@ def verify_intersection_password(intersection_id: str, data: schemas.PasswordVer
     if not valid:
         raise HTTPException(status_code=403, detail="Invalid password")
     return {"valid": True}
+
+@app.patch("/api/intersections/{intersection_id}", response_model=schemas.IntersectionDetail)
+def update_intersection(intersection_id: str, key:str, data:schemas.IntersectionUpdate, db: Session = Depends(get_db)):
+    if not utils.verify_admin_key(key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    intersection = db.query(models.Intersection).filter(models.Intersection.id == intersection_id).first()
+    if not intersection:
+        raise HTTPException(status_code=404, detail="Intersection not found")
+
+    if not data.name and not data.description:
+        return JSONResponse(status_code=204)
+
+    if data.name:
+        intersection.name = data.name
+    if data.description:
+        intersection.description = data.description
+
+    db.add(intersection)
+    db.commit()
+
+    db.refresh(intersection)
+    
+    return schemas.IntersectionDetail(
+        id=intersection.id,
+        name=intersection.name,
+        description=intersection.description,
+        has_password=bool(intersection.password_hash),
+        created_at=intersection.created_at,
+        approaches=[schemas.ApproachResponse.model_validate(a) for a in intersection.approaches],
+        movements=[schemas.MovementResponse.model_validate(m) for m in intersection.movements],
+        modes=[schemas.TravelModeResponse.model_validate(t) for t in intersection.modes]
+    )
+
+@app.delete("/api/intersections/{intersection_id}")
+def delete_intersection(intersection_id: str, key: str, db: Session = Depends(get_db)):
+    if not utils.verify_admin_key(key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    intersection = db.query(models.Intersection).filter(models.Intersection.id == intersection_id).first()
+    if not intersection:
+        raise HTTPException(status_code=404, detail="Intersection not found")
+
+    db.delete(intersection)
+    db.commit()
+    return
+
+
+# ----------------- Approaches ---------------
+@app.patch("/api/intersections/{intersection_id}/approaches/{approach_id}", response_model=schemas.ApproachBase)
+def update_approach(intersection_id: str, approach_id: str, key: str, data:schemas.ApproachUpdate, db: Session = Depends(get_db)):
+    if not utils.verify_admin_key(key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    intersection = db.query(models.Intersection).filter(models.Intersection.id == intersection_id).first()
+    if not intersection:
+        raise HTTPException(status_code=404, detail="Intersection not found")
+    approach = db.query(models.IntersectionApproach).filter(models.IntersectionApproach.id == approach_id).first()
+    if not approach:
+        raise HTTPException(status_code=404, detail="Approach not found")
+
+    if not data.name and not data.compass_degrees and not data.type:
+        return JSONResponse(status_code=204)
+
+    if data.name:
+        approach.name = data.name
+    if data.compass_degrees:
+        approach.compass_degrees = data.compass_degrees
+    if data.type:
+        approach.type = data.type
+
+    db.add(approach)
+    db.commit()
+    db.refresh(approach)
+    return approach
+
+@app.delete("/api/intersections/{intersection_id}/approaches/{approach_id}")
+def delete_approach(intersection_id: str, approach_id: str, key: str, db: Session = Depends(get_db)):
+    if not utils.verify_admin_key(key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    intersection = db.query(models.Intersection).filter(models.Intersection.id == intersection_id).first()
+    if not intersection:
+        raise HTTPException(status_code=404, detail="Intersection not found")
+    approach = db.query(models.IntersectionApproach).filter(models.IntersectionApproach.id == approach_id, models.IntersectionApproach.intersection_id == intersection_id).first()
+    if not approach:
+        raise HTTPException(status_code=404, detail="Approach not found")
+
+    db.delete(approach)
+    db.commit()
+    return
+
+# ----------------- TravelModes ---------------
+
+
+# ----------------- Movements -----------------
+
+@app.delete("/api/intersections/{intersection_id}/movements/{movement_id}")
+def delete_movement(intersection_id: str, movement_id: str, key: str, db: Session = Depends(get_db)):
+    if not utils.verify_admin_key(key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    intersection = db.query(models.Intersection).filter(models.Intersection.id == intersection_id).first()
+    if not intersection:
+        raise HTTPException(status_code=404, detail="Intersection not found")
+    movement = db.query(models.IntersectionMovement).filter(models.IntersectionMovement.id == movement_id, models.IntersectionMovement.intersection_id == intersection_id).first()
+    if not movement:
+        raise HTTPException(status_code=404, detail="Movement not found")
+
+    db.delete(movement)
+    db.commit()
+    return
 
 # ----------------- Sessions -----------------
 @app.post("/api/intersections/{intersection_id}/sessions", response_model=schemas.SessionResponse, status_code=status.HTTP_201_CREATED)
@@ -375,6 +478,9 @@ def get_session_stats(session_id: str, db: Session = Depends(get_db)):
 # ----------------- Export Capabilities -----------------
 @app.get("/api/intersections/{intersection_id}/export/raw")
 def export_raw_data(
+    # TODO: This should take more parameters, including
+    #    date range of counting sessions
+    #    include IDs or not
     intersection_id: str,
     session_ids: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db)
@@ -396,13 +502,6 @@ def export_raw_data(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    # writer.writerow([
-    #     "Event ID", "Timestamp (UTC)", "15m Bucket (UTC)",
-    #     "Session ID", "Counter Name",
-    #     "Mode", "Movement", "Movement Type",
-    #     "Entry Approach", "Entry Compass Heading",
-    #     "Exit Approach", "Exit Compass Heading"
-    # ])
 
     writer.writerow([
         "EventID",
@@ -439,21 +538,6 @@ def export_raw_data(
             exit_app.name,
             exit_app.id
         ])
-
-        # writer.writerow([
-        #     ev.id,
-        #     ev.timestamp.isoformat() if ev.timestamp else "",
-        #     ev.bucket_15m.strftime("%Y-%m-%d %H:%M") if ev.bucket_15m else "",
-        #     ev.session_id,
-        #     session.counter_name if session else "",
-        #     mode.name if mode else "",
-        #     mov.name if mov else "",
-        #     mov.movement_type if mov else "",
-        #     entry_app.name if entry_app else "",
-        #     entry_app.compass_degrees if entry_app else "",
-        #     exit_app.name if exit_app else "",
-        #     exit_app.compass_degrees if exit_app else ""
-        # ])
 
     output.seek(0)
     filename = f"traffic_raw_{intersection.name.replace(' ', '_')}.csv"

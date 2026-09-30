@@ -16,6 +16,11 @@ class ApproachResponse(ApproachBase):
     intersection_id: str
     model_config = ConfigDict(from_attributes=True)
 
+class ApproachUpdate(BaseModel):
+    name: Optional[str] = Field(None)
+    compass_degrees: Optional[int] = Field(None)
+    type: Optional[Literal["entry","exit","bike","sidewalk"]] = Field(None)
+
 # --- Movements ---
 class MovementBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -32,6 +37,10 @@ class MovementResponse(MovementBase):
     intersection_id: str
     model_config = ConfigDict(from_attributes=True)
 
+class movementUpdate(BaseModel):
+    name: Optional[str]
+    movement_type: Optional[str]
+
 # --- Travel Modes ---
 class TravelModeBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -46,9 +55,13 @@ class TravelModeResponse(TravelModeBase):
     intersection_id: str
     model_config = ConfigDict(from_attributes=True)
 
+class TravelModeUpdate(BaseModel):
+    name: Optional[str]
+    color: Optional[str]
+    sort_order: Optional[int]
+
 # --- Intersections ---
 class IntersectionCreate(BaseModel):
-    adminKey: str
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     password: Optional[str] = None
@@ -77,6 +90,10 @@ class IntersectionDetail(BaseModel):
 
 class PasswordVerification(BaseModel):
     password: Optional[str] = None
+
+class IntersectionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 # --- Sessions ---
 class SessionCreate(BaseModel):

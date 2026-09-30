@@ -48,9 +48,6 @@ def list_intersections(db: Session = Depends(get_db)):
 
 @app.post("/api/intersections", response_model=schemas.IntersectionDetail, status_code=status.HTTP_201_CREATED)
 def create_intersection(data: schemas.IntersectionCreate, db: Session = Depends(get_db)):
-    valid = utils.verify_admin_key(data.adminKey)
-    if not valid:
-        raise HTTPException(status_code=403, detail="Invalid Admin Key")
     password_hash = utils.hash_password(data.password) if data.password else None
     intersection = models.Intersection(
         name=data.name,

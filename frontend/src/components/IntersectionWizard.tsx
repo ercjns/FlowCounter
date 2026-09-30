@@ -39,7 +39,6 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [password, setPassword] = useState("");
-  const [adminKey, setAdminKey] = useState("");
 
   const [approaches, setApproaches] = useState<ApproachInput[]>([
     // { name: "North Entry", compass_degrees: 0, type: "entry" },
@@ -212,7 +211,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
       setError(null);
 
       const payload = {
-        adminKey: adminKey.trim(), //new
+        // adminKey: adminKey.trim(), //new
         name: name.trim(),
         description: description.trim() || undefined,
         password: password.trim() || undefined,
@@ -256,22 +255,6 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
       {error && <div className="alert alert-danger">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-        <div className="card shadow-sm border-0 mb-4">
-          <div className="card-header bg-white fw-bold py-3">ADMINS ONLY</div>
-          <div className="card-body">
-            <div className="mb-2">
-              <label className="form-label fw-semibold">
-                Admin Key <small>(only admins may create a new intersection)</small>
-              </label>
-              <input
-                type="password"
-                className="form-control"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
 
         {/* ── Section 1: Basic Info ───────────────────────────────────────── */}
         <div className="card shadow-sm border-0 mb-4">
@@ -323,10 +306,10 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
           </div>
           <div className="card-body">
             <p className="text-muted small mb-3">
-              Define the legs of the intersection. 
-              For <strong>normal vehicle lanes</strong>, define separate entry and exit approaches. Movement definitions must flow from entry to exit.
-              &nbsp;<strong>Bike lane</strong> approaches do not have an inherent direction, use the movement definition to establish valid direction(s).
-              &nbsp;<strong>Sidewalk</strong> approaches typically represent a corner from which a pedestrian could cross to another sidewalk approach.
+              Define the legs of the intersection.<br />
+              For <strong>normal vehicle lanes</strong>, define separate entry and exit approaches.<br />
+              <strong>Bike lane</strong> approaches do not have an inherent direction, use the movement definition to establish valid direction(s).<br />
+              <strong>Sidewalk</strong> approaches typically represent a corner from which a pedestrian could cross to another sidewalk approach.
             </p>
 
             <div className="table-responsive">
@@ -471,7 +454,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
           </div>
           <div className="card-body">
             <p className="text-muted small mb-3">
-              Define each movement (flow) to be counted. A flow always moves from an <strong>entry</strong> approach to an <strong>exit</strong> approach. A flow may be valid for all modes, or may be limited to a selected set of travel modes.
+              Define each movement (flow) to be counted. A vehicle flow always moves from an <strong>entry</strong> approach to an <strong>exit</strong> approach. Bike and Pedestrian flows can go to any other approach. Be sure to define <strong>each direction separately</strong>! A flow may be valid for all modes, or may be limited to a selected set of travel modes.
             </p>
 
             {movements.length === 0 ? (
@@ -479,10 +462,10 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
             ) : (
               <div className="d-flex flex-column gap-3">
                 {movements.map((mov, movIdx) => (
-                  <div key={movIdx} className="border rounded p-3 bg-light">
+                  <div key={movIdx} className="border rounded p-2 bg-light">
                     {/* Movement header row */}
-                    <div className="row g-2 align-items-end mb-3">
-                      <div className="col-12 col-sm-3">
+                    <div className="row g-2 align-items-end pt-2">
+                      <div className="col-12 col-sm-6">
                         <label className="form-label small fw-semibold mb-1">Movement Name</label>
                         <input
                           type="text"
@@ -493,39 +476,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           required
                         />
                       </div>
-                      <div className="col-6 col-sm-3">
-                        <label className="form-label small fw-semibold mb-1">
-                          Entry
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={mov.entry_approach_index}
-                          onChange={(e) => updateMovement(movIdx, "entry_approach_index", parseInt(e.target.value))}
-                        >
-                          {originApproaches.map((app) => (
-                            <option key={app.index} value={app.index}>
-                              #{app.index + 1} {app.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-6 col-sm-3">
-                        <label className="form-label small fw-semibold mb-1">
-                          Exit
-                        </label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={mov.exit_approach_index}
-                          onChange={(e) => updateMovement(movIdx, "exit_approach_index", parseInt(e.target.value))}
-                        >
-                          {destinationApproaches.map((app) => (
-                            <option key={app.index} value={app.index}>
-                              #{app.index + 1} {app.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-3 col-sm-2">
+                      <div className="col-4 col-sm-4">
                         <label className="form-label small fw-semibold mb-1">Type</label>
                         <select
                           className="form-select form-select-sm"
@@ -548,9 +499,49 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                         </button>
                       </div>
                     </div>
+                    <div className="row g-2 align-items-end pt-2">
+                      <div className="col-6 col-sm-5">
+                        <label className="form-label small fw-semibold mb-1">
+                          From / Entry
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={mov.entry_approach_index}
+                          onChange={(e) => updateMovement(movIdx, "entry_approach_index", parseInt(e.target.value))}
+                        >
+                          {originApproaches.map((app) => (
+                            <option key={app.index} value={app.index}>
+                              #{app.index + 1} {app.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-1">
+                        <i className="bi bi-arrow-right"></i>
+                        <i className="bi bi-arrow-right"></i>
+                        <i className="bi bi-arrow-right"></i>
+                      </div>
+                      <div className="col-6 col-sm-5">
+                        <label className="form-label small fw-semibold mb-1">
+                          To / Exit
+                        </label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={mov.exit_approach_index}
+                          onChange={(e) => updateMovement(movIdx, "exit_approach_index", parseInt(e.target.value))}
+                        >
+                          {destinationApproaches.map((app) => (
+                            <option key={app.index} value={app.index}>
+                              #{app.index + 1} {app.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                    </div>
 
                     {/* Valid modes for this movement */}
-                    <div>
+                    <div className="row pt-2">
                       <div className="d-flex align-items-center mb-2">
                         <span className="small fw-semibold text-dark px-2">
                           Valid Travel Modes
@@ -590,7 +581,7 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                 ))}
               </div>
             )}
-            <div className="row">
+            <div className="row mt-2">
               <button
                 type="button"
                 className="btn btn-sm btn-outline-primary"
@@ -604,6 +595,10 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
         </div>
 
         {/* ── Submit ─────────────────────────────────────────────────────── */}
+        <div className="d-grid gap-2 mb-5">
+          <p>Double check your configuration before saving!! 
+            There is not a way to edit your configuration after saving it!</p>
+        </div>
         <div className="d-grid gap-2 mb-5">
           <button type="submit" className="btn btn-primary btn-lg shadow-sm" disabled={submitting}>
             {submitting ? (

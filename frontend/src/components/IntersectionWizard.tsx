@@ -26,13 +26,14 @@ interface ModeInput {
 }
 
 const DEFAULT_MODES: ModeInput[] = [
-  { name: "Car", color: "#d82512" },
   { name: "Moto", color: "#8820e3" },
+  { name: "Car", color: "#d82512" },
   { name: "Van", color: "#d6760e" },
   { name: "Truck", color: "#6b7177" },
-  { name: "Bus", color: "#d0c00c" },
+  { name: "Bus", color: "#c6b601" },
   { name: "Pedestrian", color: "#1154d1" },
   { name: "Bicycle", color: "#198754" },
+  { name: "Scooter", color: "#17a2a9" },
 ];
 
 export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => {
@@ -486,7 +487,9 @@ export const IntersectionWizard: React.FC<Props> = ({ onCancel, onCreated }) => 
                           <option value="thru">Thru</option>
                           <option value="left">Left</option>
                           <option value="right">Right</option>
+                          <option value="uturn">U-Turn</option>
                           <option value="cross">Crossing</option>
+                          
                         </select>
                       </div>
                       <div className="col-1">

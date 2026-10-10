@@ -26,8 +26,8 @@ interface ModeInput {
 }
 
 const DEFAULT_MODES: ModeInput[] = [
-  { name: "Moto", color: "#8820e3" },
   { name: "Car", color: "#d82512" },
+  { name: "Moto", color: "#8820e3" },
   { name: "Van", color: "#d6760e" },
   { name: "Truck", color: "#6b7177" },
   { name: "Bus", color: "#c6b601" },

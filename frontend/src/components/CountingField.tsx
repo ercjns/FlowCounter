@@ -49,13 +49,14 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
 
   // ── Stats state: key is `movId:modeId` ────────────────────────────────────
   const [totals, setTotals] = useState<Record<string, number>>({});
-  const [bucketTotals, setBucketTotals] = useState<Record<string, number>>({});
+  // const [bucketTotals, setBucketTotals] = useState<Record<string, number>>({});
   const [currentBucketStr, setCurrentBucketStr] = useState<string>("");
 
   // ── Undo stack & sync queue ────────────────────────────────────────────────
   const [undoStack, setUndoStack] = useState<LocalTallyAction[]>([]);
   const pendingBatchRef = useRef<LocalTallyAction[]>([]);
   const flushTimerRef = useRef<any>(null);
+  const [sending, setSending] = useState(false)
 
   // ── Animation trigger map ──────────────────────────────────────────────────
   const [pulseKey, setPulseKey] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
   // ── Flush pending batch to server ──────────────────────────────────────────
   const flushPendingBatch = useCallback(async () => {
     if (pendingBatchRef.current.length === 0) return;
+    setSending(true)
     const batch = [...pendingBatchRef.current];
     pendingBatchRef.current = [];
 
@@ -78,38 +80,46 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
     } catch (err) {
       console.error("Batch sync failed, re-queueing", err);
       pendingBatchRef.current = [...batch, ...pendingBatchRef.current];
+    } finally {
+      setSending(false);
     }
   }, [session.id]);
 
   // ── Periodic flush & background stats refresh ──────────────────────────────
   useEffect(() => {
     const syncInterval = setInterval(() => {
+      console.log("Call flush every 60s")
       flushPendingBatch();
-    }, 15*1000); //was 1500
+    }, 60*1000);
 
-    const statsInterval = setInterval(async () => {
-      try {
-        const stats: SessionStats = await fetchSessionStats(session.id);
-        setCurrentBucketStr(stats.current_bucket_str);
-        setTotals((prev) => ({ ...stats.totals, ...prev }));
-        setBucketTotals((prev) => ({ ...stats.bucket_15m_totals, ...prev }));
-      } catch (e) {
-        // silent catch
-      }
-    }, 30*1000); //was 10*1000
+    // This doesn't appear to be needed, but it is how the frontend displays a bucket time
+    // So need to move that to the frontend only (there's no reason for it to be sent from server)
+    // or just remove it from the front-end entirely.
+    // const statsInterval = setInterval(async () => {
+    //   try {
+    //     const stats: SessionStats = await fetchSessionStats(session.id);
+    //     // This is fetching stats from the backend, but for my specific session
+    //     // Is there a world where this might clobber local state?
+    //     setCurrentBucketStr(stats.current_bucket_str);
+    //     setTotals((prev) => ({ ...stats.totals, ...prev }));
+    //     setBucketTotals((prev) => ({ ...stats.bucket_15m_totals, ...prev }));
+    //   } catch (e) {
+    //     // silent catch
+    //   }
+    // }, 30*1000); //was 10*1000
 
     // Initial load
     fetchSessionStats(session.id)
       .then((stats) => {
         setTotals(stats.totals || {});
-        setBucketTotals(stats.bucket_15m_totals || {});
+        // setBucketTotals(stats.bucket_15m_totals || {});
         setCurrentBucketStr(stats.current_bucket_str);
       })
       .catch(() => {});
 
     return () => {
       clearInterval(syncInterval);
-      clearInterval(statsInterval);
+      // clearInterval(statsInterval);
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
       flushPendingBatch();
     };
@@ -157,7 +167,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
 
     // 1. Optimistic instant increment (0ms UI latency)
     setTotals((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
-    setBucketTotals((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+    // setBucketTotals((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
 
     // 2. Micro-visual pulse animation
     setPulseKey(key);
@@ -171,11 +181,25 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
     pendingBatchRef.current.push(action);
 
     // Debounce rapid sync
-    if (pendingBatchRef.current.length >= 5) {
+    if (pendingBatchRef.current.length >= 20) {
+      // If more than N tallies waiting to be sent, send now
+      console.log("call flush for 20+ pending");
       flushPendingBatch();
     } else {
+      // A tally happened so reset the timer if it's set
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = setTimeout(flushPendingBatch, 1000);
+      
+      flushTimerRef.current = setTimeout(() => {
+        // If no tallies in next {TIME}, send the batch
+        console.log("call flush because activity timer expired")
+        flushPendingBatch();
+        // Take this opportunity to cut down the undo stack
+        if (undoStack.length > 20) {
+          console.log("timer expired, shorten Undo stack")
+          setUndoStack((prev) => prev.slice(-20));
+        }
+      }, 
+        10*1000); // WAS 1*1000
     }
   };
 
@@ -188,7 +212,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
 
     const key = `${lastAction.movement_id}:${lastAction.mode_id}`;
     setTotals((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 1) - 1) }));
-    setBucketTotals((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 1) - 1) }));
+    // setBucketTotals((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 1) - 1) }));
 
     const bufferIdx = pendingBatchRef.current.findLastIndex(
       (a) => a.movement_id === lastAction.movement_id && a.mode_id === lastAction.mode_id
@@ -197,6 +221,14 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
       pendingBatchRef.current.splice(bufferIdx, 1);
     } else {
       try {
+        // something about this logic doesn't seem perfect but I think it's ok for now
+        // I do believe flush first is correct, but if the flush fails, I think this 
+        // has unexpected behavior where it undoes the last thing the server has rather than
+        // undoing the last local tally. That *shouldn't* happen becuase if it's local then
+        // the earlier case should find it, but I think there's a race condition where if 
+        // we're in the process of flushing (so pendingBatchRef is empty) but then the flush
+        // fails, then this is a problem. Maybe the error handling handles this correctly?
+        // for now I think it's an edge case and moving on.
         await flushPendingBatch();
         await undoLastTally(session.id);
       } catch (err) {
@@ -319,29 +351,28 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
       {/* Top Status Bar */}
       <div className="card shadow-sm border-0 mb-3 bg-white">
         <div className="card-body p-2 p-md-3">
+          <div className="d-flex align-items-center">
+            <span className="fw-semibold text-dark center">{intersection.name}</span>
+            {/* <span className="me-2 text-small">&nbsp;Observer: {session.counter_name}</span> */}
+          </div>
           <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <span className="fw-semibold text-dark d-none d-sm-inline">{intersection.name}</span>
-              <span className="me-2 text-small">&nbsp;Observer: {session.counter_name}</span>
+            <div className="d-flex align-items-center gap-2">
+              {isCounting && (
+                <button
+                  className="btn btn-outline-secondary btn-sm px-3 d-flex align-items-center"
+                  onClick={handleUndo}
+                  disabled={undoStack.length === 0}
+                  title="Undo last recorded tally"
+                >
+                  <i className="bi bi-arrow-counterclockwise me-1"></i> Undo
+                </button>
+              )}
             </div>
-
             <div className="d-flex align-items-center gap-2">
               {isCounting ? (
                 <>
                   <button
-                    className="btn btn-outline-warn btn-sm px-3 fw-bold d-flex align-items-center"
-                    onClick={handleUndo}
-                    disabled={undoStack.length === 0}
-                    title="Undo last recorded tally"
-                  >
-                    <i className="bi bi-arrow-counterclockwise me-1"></i> Undo
-                    {/* {undoStack.length > 0 && (
-                      <span className="badge bg-danger ms-1">{undoStack.length}</span>
-                    )} */}
-                  </button>
-
-                  <button
-                    className="btn btn-danger btn-sm fw-semibold"
+                    className="btn btn-outline-danger btn-sm fw-semibold"
                     onClick={() => setConfirmEnd(true)}
                   >
                     Stop Counting
@@ -384,14 +415,20 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
             </div>
           )}
 
-          {isCounting && currentBucketStr && (
-            <div className="text-muted small mt-2 d-flex justify-content-between align-items-center">
-              <span>
-                <i className="bi bi-clock me-1"></i> Current Interval: <strong>{currentBucketStr}</strong>
+          {isCounting && (
+            <div className="text-muted small mt-2 d-flex justify-content-left align-items-center">
+              <span className="badge text-bg-light border">
+                Session Total: {Object.values(totals).reduce((s, c) => s + c, 0)}
               </span>
-              <span className="badge bg-light text-secondary border">
-                Total: {Object.values(totals).reduce((s, c) => s + c, 0)}
-              </span>
+                {sending && (
+                    <span className="badge text-bg-info ms-1">Syncing...</span>
+                )}
+                {pendingBatchRef.current.length === 0 && !sending && (
+                    <span className="badge bg-success ms-1">Synced</span>
+                )}
+                {pendingBatchRef.current.length > 0 && (
+                    <span className={`badge ms-1 ${pendingBatchRef.current.length > 25 ? "text-bg-danger" : "text-bg-warning"}`}>Pending: {pendingBatchRef.current.length}</span>
+                )}
             </div>
           )}
         </div>
@@ -414,7 +451,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
                   {movModes.map((mode) => {
                     const key = `${mov.id}:${mode.id}`;
                     const countTotal = totals[key] || 0;
-                    const count15m = bucketTotals[key] || 0;
+                    // const count15m = bucketTotals[key] || 0;
                     const isPulsing = pulseKey === key;
 
                     return (
@@ -425,8 +462,8 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
                             isPulsing ? "tally-btn-pulse border-primary shadow" : "shadow-sm"
                           }`}
                           style={{
-                            backgroundColor: "#ffffff",
-                            borderTop: `4px solid ${mode.color || "#0d6efd"}`,
+                            backgroundColor: isPulsing ? `${mode.color || "#0d6efd"}` :  "#ffffff" ,
+                            border: `4px solid ${mode.color || "#0d6efd"}`,
                             cursor: isCounting ? "pointer" : "not-allowed",
                           }}
                           onClick={() => handleTallyClick(mov.id, mode.id)}
@@ -434,7 +471,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
                         >
                           <div
                             className="fw-bold text-truncate small mb-1"
-                            style={{ color: mode.color || "#0d6efd" }}
+                            style={{ color: isPulsing ? "#ffffff" : `${mode.color || "#0d6efd"}` }}
                             title={mode.name}
                           >
                             {mode.name}
@@ -466,7 +503,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow">
               <div className="modal-header">
-                <h5 className="modal-title fw-bold">Stop Counting Session?</h5>
+                <h5 className="modal-title fw-bold">Stop Counting?</h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -475,11 +512,19 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
               </div>
               <div className="modal-body">
                 <p className="mb-1">
-                  Are you sure you want to finish counting for <strong>{session.counter_name}</strong>?
+                  Thank you for counting <strong>{Object.values(totals).reduce((s, c) => s + c, 0)}</strong> movements! Are you sure you are done counting?
                 </p>
-                <p className="text-muted small mb-0">
-                  Once ended, all records will be saved and you will be able to review the session summary. No further tallies can be added.
-                </p>
+                {(pendingBatchRef.current.length > 0 || sending) && (
+                  <>
+                  <p className="text-danger">
+                    <strong>There are movements that have not yet synced to the database!</strong>
+                  </p>
+                  <p>
+                    Click on Sync & End. If you receive an error, check your internet connection, then try to end the session again.
+                  </p>
+                  </>
+                )}
+                <p></p>
               </div>
               <div className="modal-footer">
                 <button
@@ -496,7 +541,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
                   onClick={handleConfirmEnd}
                   disabled={ending}
                 >
-                  {ending ? "Saving..." : "Confirm & End"}
+                  {ending ? "Working..." : (pendingBatchRef.current.length > 0 || sending) ? "Sync & End" : "Confirm & End"}
                 </button>
               </div>
             </div>

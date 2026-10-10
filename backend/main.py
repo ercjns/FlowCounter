@@ -437,11 +437,7 @@ def get_session_stats(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
 
     now = datetime.now(timezone.utc)
-    # TODO: I'M MESSING WITH TIMEZONE ON THE LINE BELOW HERE
-    # I believe this only affects the *displayed* bucket time in the counting page
-    # It appears that the times and buckets are still recoreded in UTC after making this change
-    # ... so maybe undo this change?
-    current_bucket = utils.get_15m_bucket(now).astimezone(timezone(timedelta(hours=1), 'WEsT')) # extra .astimezone
+    current_bucket = utils.get_15m_bucket(now) # .astimezone(timezone(timedelta(hours=1), 'WEsT')) # extra .astimezone
 
     tallies = db.query(
         models.TallyEvent.movement_id,
@@ -472,8 +468,11 @@ def get_session_stats(session_id: str, db: Session = Depends(get_db)):
 
     return schemas.SessionStats(
         session_id=session_id,
-        totals=totals,
-        bucket_15m_totals=bucket_totals,
+        # totals=totals,
+        # bucket_15m_totals=bucket_totals,
+        # remove data from both stats buckets for now, this isn't needed.
+        totals={},
+        bucket_15m_totals={},
         current_bucket_str=current_bucket.strftime("%Y-%m-%d %H:%M")
     )
 

@@ -56,6 +56,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
   const [undoStack, setUndoStack] = useState<LocalTallyAction[]>([]);
   const pendingBatchRef = useRef<LocalTallyAction[]>([]);
   const flushTimerRef = useRef<any>(null);
+  const [sending, setSending] = useState(false)
 
   // ── Animation trigger map ──────────────────────────────────────────────────
   const [pulseKey, setPulseKey] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
   // ── Flush pending batch to server ──────────────────────────────────────────
   const flushPendingBatch = useCallback(async () => {
     if (pendingBatchRef.current.length === 0) return;
+    setSending(true)
     const batch = [...pendingBatchRef.current];
     pendingBatchRef.current = [];
 
@@ -78,15 +80,17 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
     } catch (err) {
       console.error("Batch sync failed, re-queueing", err);
       pendingBatchRef.current = [...batch, ...pendingBatchRef.current];
+    } finally {
+      setSending(false);
     }
   }, [session.id]);
 
   // ── Periodic flush & background stats refresh ──────────────────────────────
   useEffect(() => {
-    // const syncInterval = setInterval(() => {
-    //   flushPendingBatch();
-    //   //Not sure what this is doing, pretty sure end of HandleTallyClick is flushing as needed.
-    // }, 15*1000); //was 1500 
+    const syncInterval = setInterval(() => {
+      console.log("Call flush every 60s")
+      flushPendingBatch();
+    }, 60*1000);
 
     // This doesn't appear to be needed, but it is how the frontend displays a bucket time
     // So need to move that to the frontend only (there's no reason for it to be sent from server)
@@ -114,7 +118,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
       .catch(() => {});
 
     return () => {
-      // clearInterval(syncInterval);
+      clearInterval(syncInterval);
       // clearInterval(statsInterval);
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
       flushPendingBatch();
@@ -187,7 +191,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
       
       flushTimerRef.current = setTimeout(() => {
         // If no tallies in next {TIME}, send the batch
-        console.log("call flush because timer expired")
+        console.log("call flush because activity timer expired")
         flushPendingBatch();
         // Take this opportunity to cut down the undo stack
         if (undoStack.length > 20) {
@@ -368,7 +372,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
               {isCounting ? (
                 <>
                   <button
-                    className="btn btn-danger btn-sm fw-semibold"
+                    className="btn btn-outline-danger btn-sm fw-semibold"
                     onClick={() => setConfirmEnd(true)}
                   >
                     Stop Counting
@@ -416,11 +420,14 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
               <span className="badge text-bg-light border">
                 Session Total: {Object.values(totals).reduce((s, c) => s + c, 0)}
               </span>
-                {pendingBatchRef.current.length === 0 && (
+                {sending && (
+                    <span className="badge text-bg-info ms-1">Syncing...</span>
+                )}
+                {pendingBatchRef.current.length === 0 && !sending && (
                     <span className="badge bg-success ms-1">Synced</span>
                 )}
                 {pendingBatchRef.current.length > 0 && (
-                    <span className="badge text-bg-warning ms-1">Pending: {pendingBatchRef.current.length}</span>
+                    <span className={`badge ms-1 ${pendingBatchRef.current.length > 25 ? "text-bg-danger" : "text-bg-warning"}`}>Pending: {pendingBatchRef.current.length}</span>
                 )}
             </div>
           )}
@@ -496,7 +503,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow">
               <div className="modal-header">
-                <h5 className="modal-title fw-bold">Stop Counting Session?</h5>
+                <h5 className="modal-title fw-bold">Stop Counting?</h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -505,8 +512,19 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
               </div>
               <div className="modal-body">
                 <p className="mb-1">
-                  Are you sure you want to finish counting for <strong>{session.counter_name}</strong>?
+                  Thank you for counting <strong>{Object.values(totals).reduce((s, c) => s + c, 0)}</strong> movements! Are you sure you are done counting?
                 </p>
+                {(pendingBatchRef.current.length > 0 || sending) && (
+                  <>
+                  <p className="text-danger">
+                    <strong>There are movements that have not yet synced to the database!</strong>
+                  </p>
+                  <p>
+                    Click on Sync & End. If you receive an error, check your internet connection, then try to end the session again.
+                  </p>
+                  </>
+                )}
+                <p></p>
               </div>
               <div className="modal-footer">
                 <button
@@ -523,7 +541,7 @@ export const CountingField: React.FC<Props> = ({ intersection, session, onEndSes
                   onClick={handleConfirmEnd}
                   disabled={ending}
                 >
-                  {ending ? "Saving..." : "Confirm & End"}
+                  {ending ? "Working..." : (pendingBatchRef.current.length > 0 || sending) ? "Sync & End" : "Confirm & End"}
                 </button>
               </div>
             </div>
